@@ -1,89 +1,75 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Nov 22 17:33:49 2022
 
-@author: kmj05
-"""
-
+#hello I am testing out git hub this is third test
 
 import pickle
 import os
-os.chdir(r'Z:\Soo B\Katie\projects\freezing_score\pickle_files')
+os.chdir(r'C:\Users\kmj05\OneDrive\Desktop\coding\winter2023_lab\code_by_modules\fz_analyze2')
 
-# open pickle
-with open("987_N_ctxA", "rb") as f:
-    rawdata = f.read()
-    
-ctxA_987_N = pickle.loads(rawdata)
-
-
-
-#%%
-
-
-# pickle: save/open
-
-
-import pickle
-import os
-path = r'Z:\Soo B\Katie\projects\freezing_score\pickle_files\10s_between_light\condition_4'
-os.chdir(path)
 # save pickle
-with open('full_timestamps(4)', 'wb') as handle:
-    pickle.dump(hi, handle, protocol=pickle.HIGHEST_PROTOCOL)
+with open('average', 'wb') as handle:
+    pickle.dump(average, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
+
+#%%
+
+# open file from fz_score
 
 import pickle
 import os
-os.chdir(r'Z:\Soo B\Katie\projects\freezing_score\pickle_files\10s_between_light\condition_1')
+os.chdir(r'C:\Users\kmj05\OneDrive\Desktop\coding\winter2023_lab\code_by_modules\fz_analyze2')
+
 # open pickle
-with open("full_timestamps", "rb") as f:
+with open("my_final", "rb") as f:
     rawdata = f.read()
     
-my_3d = pickle.loads(rawdata)
+master_dict = pickle.loads(rawdata)
 
 
 
 #%%
 
-# delete area from the dictionary
+# extract only fz and dictionary of {mouse: [[pxl shift by index],[],[]]}
 
-def delete_area(my_input, my_type):
-    mouse_list = []
-    for mouse in my_input:
-        mouse_list.append(mouse)
-    for mouse in mouse_list:
-        del my_input[mouse][my_type]
-    return my_input
+# after
+def after(my_dict):
+    indexed = {}
+    for mouse, value in my_dict.items():
+        fz = value['pxl_shift']   #pixel shift
+        idx = value['on_off_idx']  #index of light on and off
+        fz_list = []  
+        fz_list.append(fz[0:idx[0][0]])  #append initial delay, 0 to first light
+        for x in idx:  #for each presentation index
+            fz_list.append(fz[x[1]:x[1]+1800])  #light off index to light off + 60s
+        indexed[mouse] = fz_list  #append to dictionary
+    return indexed
 
-condition_1 = delete_area(condition_1, 'area_list')
+indexed = after(master_dict)
+
+# # between
+# def between(my_dict):
+#     indexed = {}
+#     for mouse, value in my_dict.items():
+#         con = mouse.split()[0][-1]
+#         if (con == '3') or (con == '4') or (con == '7') or (con == '8'):  #if 10s tone
+#             fz = value['pxl_shift']   #pixel shift
+#             idx = value['on_off_idx']  #index of light on and off
+#             fz_list = []  
+#             fz_list.append(fz[0:idx[0][0]])  #append initial delay, 0 to first light
+#             for x in idx:  #for each presentation index
+#                 fz_list.append(fz[x[0]:x[1]])  #light on index to light off
+#             indexed[mouse] = fz_list  #append to dictionary
+#     return indexed
+
+# indexed = between(master_dict)
 
 
-    
 #%%
-    
 
-
-# extract one of (freeze_only,area_list, timestamps) from final_dict
-def extract_fz_only(my_input, my_type):
-    mouse_list = []
-    auto_dict = {}
-    for mouse in my_input:
-        mouse_list.append(mouse)
-    for mouse in mouse_list:
-        auto_dict[mouse] = my_input[mouse][my_type]
-    return auto_dict
-
-auto_dict = extract_fz_only(ctxB_after, 'freeze_list')
-
-
-
-#%%
 
 
 # convert into percentage, half second , 1/3
 
-def fz_to_percentage():
+def fz_to_percentage(auto_dict):
     def data(numbers):
         boolean, x = [], []
         for idx, num in enumerate(numbers):
@@ -115,80 +101,132 @@ def fz_to_percentage():
         my_dict[key] = freeze
     return my_dict
 
-my_dict = fz_to_percentage()
+
+
+# extract one of (freeze_only,area_list, timestamps) from final_dict
+def extract_fz_only(my_input, my_type):
+    mouse_list = []
+    auto_dict = {}
+    for mouse in my_input:
+        mouse_list.append(mouse)
+    for mouse in mouse_list:
+        auto_dict[mouse] = my_input[mouse][my_type]
+    return auto_dict
+
+
+
+def dataframe():
+    
+    import pandas as pd
+    
+    data = {'day_type': ['MD','MD','MD','MD','SD','SD','SD','SD'],
+            'tone_duration': ['1s','1s','10s','10s','1s','1s','10s','10s'],
+            'num_of_cycles': ['8','15','8','15','8','15','8','15']}
+    
+    conditions = pd.DataFrame(data, index = ['con1','con2','con3','con4',
+                                             'con5','con6','con7','con8'])
+    return conditions
+
+
+def reduce_master(auto_dict, my_time, keys):
+    
+    import pandas as pd
+    
+    # make framework dictionary: {condition: {FS:0, ctr:0}}
+    reduced_dict = {}
+    for i in range(1,9):
+        con = 'con'+str(i)
+        _ = keys.loc[con]
+        reduced_dict[con] = {'info': (_['day_type'], _['tone_duration'],
+                                      _['num_of_cycles']), 'FS':{}, 'ctr':{}}
+    
+    # combine reduced fz and timestamps into df
+    for vid, perc in auto_dict.items():  #for individual video in fz_perc 
+       
+        # arrange specifics of video
+        day = vid.split()[1]
+        other = vid.split()[0]
+        other = other.split('_')
+        mouse = "_".join([other[0],other[1]])
+        ctr_or_fs = other[2]
+        condition = other[3]
         
-    
-    
+        # make dataframe of fz and timestamps and append to reduced dict
+        d = {'Freeze(%)': perc, 'Timestamps': my_time[vid]}
+        df = pd.DataFrame(data=d)
+        
+        temp = reduced_dict[condition][ctr_or_fs]
+        if mouse in temp.keys():
+            temp[mouse].update({day: df})
+        else:
+            temp.update({mouse: {day: df}})
+            
+    return reduced_dict
 
-#%%
 
-
-# fs to control separate
-
-#condition1
-my_fs = {key: value for key,value in my_dict.items() if not ('833_N' in key or '833_RL' in key or '868_N' in key)}
-my_ctr = {key: value for key,value in my_dict.items() if ('833_N' in key or '833_RL' in key or '868_N' in key)}
-#condition5
-my_fs = {key: value for key,value in my_dict.items() if not ('833_R' in key)}
-my_ctr = {key: value for key,value in my_dict.items() if ('833_R' in key)}
-
-#else:
-my_fs = {key: value for key,value in my_dict.items() if not ('ctr' in key)}
-my_ctr = {key: value for key,value in my_dict.items() if ('ctr' in key)}
-
+auto_dict = fz_to_percentage(indexed)
+my_time = extract_fz_only(master_dict, 'timestamps')
+keys = dataframe()
+reduced_dict = reduce_master(auto_dict, my_time, keys)
 
 
 
 #%%
 
 
-import pickle
-import os
 
-path = r'Z:\Soo B\Katie\projects\freezing_score\pickle_files\only_after\condition_4\FS'
-os.chdir(path)
+# individual plotting
 
-for mouse,value in my_fs.items():
-    with open(mouse, 'wb') as handle:
-        pickle.dump(value, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
-
-
-
-#%%
-
-
-# plotting!!
-
-def day_type_and_plot_title(conditions):
-    if conditions['day_type'] == 'md':
+def day_type_and_title(info, condition):
+    if info[0] == 'MD':
         day_type = ['D1', 'D2', 'D3', 'D4']
-        day = 'Multi-day'
-    elif conditions['day_type'] == 'sd':
+    else:  #if single day
         day_type = ['D1', 'D2']
-        day = 'Single-day'
     #for title
-    condition = conditions['fs_or_ctr']
-    tone = conditions['tone_duration']
-    cycle = conditions['number_of_cycles']
-    title = f'{day}, {tone}, {cycle} cycles ({condition})'
-    #for title
+    tone = info[1]
+    cycle = info[2]
+    title = f'{info[0]}, {tone}, {cycle}-cycles ({condition})'
     return day_type, title
 
 
 # segregate by days, dictionary output
-def segregate_by_day(days, my_input):
+def segregate_by_day(day_type, my_input):
+    
     dictionary = {}
-    for x in days:
-        my_fs_d1 = {key:value for key,value in my_input.items() if x in key}
-        dictionary[x] = my_fs_d1
+    #get daylist, setup dictionary
+    for day in day_type:
+        dictionary.update({day: {}})
+    # separate by day
+    for mouse in my_input:
+        for by_day in my_input[mouse]:  #for each mouse, filter specific day
+            fz_rate = my_input[mouse][by_day]['Freeze(%)'].tolist()  #extract only fz, convert to list
+            dictionary[by_day].update({mouse: fz_rate})  #add to dictionary
+            
     return dictionary
 
 
-# plot graphs, contextB as separate plot
-from matplotlib import pyplot as plt
+def my_max_length(by_day):
+    temp = []
+    for perc in by_day.values():  #for list of perc in day[mouse]
+        temp.append(len(perc))
+    temp2 = max(temp)
+    # average by index
+    iaverage = []
+    for x in range(temp2):
+        hi = []
+        for mouse in by_day.values():
+            try:    #bc loop max length, some list might throw idx out of range
+                hi.append(mouse[x])  #add perc of mouse at x presentation
+            except:
+                pass
+        iaverage.append(sum(hi)/len(hi))  #average for each presentation
+    return temp2, iaverage
+
 
 def plotting(day_type, dictionary, title):
+
+    from matplotlib import pyplot as plt
+
     plt.style.use('seaborn')
     if len(day_type) == 4:
         fig, axs = plt.subplots(nrows=1, ncols=3, sharey=True, figsize=[10,4.8])
@@ -197,31 +235,18 @@ def plotting(day_type, dictionary, title):
         fig = plt.figure()
     fig.suptitle(title,fontsize=15)
     fig.tight_layout()
+        
     i = 0
-    for day, by_day in dictionary.items():
-        # maximum list length
-        temp = []
-        for x in by_day.values():
-            temp.append(len(x))
-        temp = max(temp)
-        # average by index
-        average = []
-        for x in range(temp):
-            hi = []
-            for y in by_day.values():
-                try:
-                    hi.append(y[x])
-                except:
-                    pass
-            mean = sum(hi)/len(hi)
-            average.append(mean)
-        if day == day_type[-1]:
+    for day, by_day in dictionary.items():  #loop through D1, D2....
+        max_length, average = my_max_length(by_day)  #max presentation, average for each presentation
+        
+        if day == day_type[-1]:  #if context B
             fig = plt.figure()
             plt.plot(average,linewidth=2.5, color='#7f7f7f')
             over = 0
             for name, individual in by_day.items():    
-                plt.scatter(range(len(individual)),individual,s=17, label=name[0:8])
-                if len(individual) < temp:    
+                plt.scatter(range(len(individual)),individual,s=17, label=name)
+                if len(individual) < max_length:    
                     plt.vlines(x=len(individual),ymin=-3,ymax=105, colors='#bf80ff')
                     over += 1
             under = over
@@ -231,19 +256,20 @@ def plotting(day_type, dictionary, title):
             else:
                 plt.title(f'{title}: context B | {under} : {over}',fontsize=15)
             plt.ylim([-3,105])
-            plt.xticks(range(0, temp, 1))
+            plt.xticks(range(0, max_length, 1))
             plt.xlabel('Presentation #',fontsize=13)
             plt.ylabel('Freezing Percentage',fontsize=13)
             plt.legend(bbox_to_anchor=(1.3, 1.0),fontsize=12)
             plt.tight_layout(pad=1.5)
-        else:
+        
+        else:   #if context A
             if len(day_type) == 4:
                 axs[i].plot(average,linewidth=2.5, color='#7f7f7f')
                 for name, individual in by_day.items():    
-                    axs[i].scatter(range(len(individual)),individual,s=17, label=name[0:8])
+                    axs[i].scatter(range(len(individual)),individual,s=17, label=name)
                 axs[i].set_title(day)
                 axs[i].set_ylim([-3, 105])
-                axs[i].set_xticks(range(0, temp, 1))
+                axs[i].set_xticks(range(0, max_length, 1))
                 axs[i].set_xlabel('Presentation #',fontsize=13)
                 axs[0].set_ylabel('Freezing Percentage',fontsize=13)
                 axs[2].legend(bbox_to_anchor=(1.0, 1.0),fontsize=12)
@@ -251,9 +277,200 @@ def plotting(day_type, dictionary, title):
             elif len(day_type) == 2:
                 plt.plot(average,linewidth=2.5, color='#7f7f7f')
                 for name, individual in by_day.items():    
-                    plt.scatter(range(len(individual)),individual,s=17, label=name[0:8])
+                    plt.scatter(range(len(individual)),individual,s=17, label=name)
                 plt.ylim([-3, 105])
-                plt.xticks(range(0, temp, 1))
+                plt.xticks(range(0, max_length, 1))
+                plt.xlabel('Presentation #',fontsize=13)
+                plt.ylabel('Freezing Percentage',fontsize=13)
+                plt.legend(bbox_to_anchor=(1.3, 1.0),fontsize=12)
+                plt.tight_layout()
+        i+=1
+        
+
+
+graphs = []
+for con in reduced_dict:
+    info = reduced_dict[con]['info']
+    for condition in ['FS','ctr']:
+        day_type, title = day_type_and_title(info, condition)
+        my_con = reduced_dict[con][condition]  #mouse dict within same condition and (FS/ctr)
+        if bool(my_con) == False:   #if we don't have data, dictionary empty
+            pass
+        else:
+            graphs.append([con, condition])     #condition + fs/ctr that we have at least one data point
+            dictionary = segregate_by_day(day_type, my_con)
+            plotting(day_type, dictionary, title)
+      
+print('')
+print(graphs)  #print data we have
+
+            
+            
+#%%
+
+
+# group graphing
+
+
+# group into specific conditions
+
+groupby = ['10s']  #MD,SD,1s,10s,15x,8x
+# groupby = ['con1','con5']
+
+def my_filter(groupby, reduced_dict):
+    
+    filtered = {}
+    for con in groupby:
+        
+        if con in reduced_dict.keys():  #for groupby ['con1','con2']
+            filtered[con] = reduced_dict[con] 
+        
+        for condition, value in reduced_dict.items():  #loop through con1,con2 of reduced_dict
+            
+            have = True
+            for x in groupby:  #for each condition(e.g. 'MD')
+                if x in value['info']:  #for broupby ['MD', '1s']
+                    pass
+                else:
+                    have = False  #if go against at least one of condition, no
+                    
+            if have == True:
+                filtered[condition] = reduced_dict[condition] 
+
+    return filtered
+
+
+def legend_day_type(filtered):
+    
+    md = False
+    for con in filtered.values():
+        if con['info'][0] == 'MD':
+            md = True
+        #for legend
+        day = con['info'][0]
+        tone = con['info'][1]
+        cycle = con['info'][2]
+        legend = f'{day}, {tone}, {cycle}x'
+        con['legend'] = legend
+    
+    if md == True:
+        day_type = ['D1', 'D2', 'D3', 'D4']
+    else:  #if single day
+        day_type = ['D1', 'D2']
+    
+    return day_type, filtered
+
+
+def organize_to_dict(filtered):
+    dictionary = {'FS':{}, 'ctr':{}}
+    for condition in dictionary.keys():  #among FS and ctr
+        for value in filtered.values():
+            legend = value['legend']
+            data = value[condition]  #data for condition (FS/ctr)
+            dictionary[condition].update({legend: data})
+    return dictionary
+
+
+    
+def imax_length(fz):
+    
+    maxl = []
+    for x in fz:  #for list of perc in day[mouse]
+        maxl.append(len(x))
+    maxl = max(maxl)
+    # average by index
+    average = []
+    for i in range(maxl):
+        hi = []
+        for mouse in fz:
+            try:  #try to append by each index, until max length
+                hi.append(mouse[i])
+            except:
+                pass
+        average.append(sum(hi)/len(hi))  #average for each presentation
+        
+    return average
+
+
+def to_average(v,day_type):
+    
+    avg_day = {}  #make copy of v, no empty dict, Day directly instead of mouse
+    for legend in v:
+        print(f'{legend}: {len(v[legend])}')
+        avg_day.update({legend: {}})
+        for day in day_type:
+            avg_day[legend].update({day: {}})
+    
+    for legend, data in v.items():
+        for day in day_type:
+            fz = []
+            for mouse, dfs in data.items():
+                if day in dfs:
+                    fz_data = dfs[day]['Freeze(%)']
+                fz.append(fz_data)
+            average = imax_length(fz)
+            avg_day[legend][day] = average
+    
+    return avg_day
+        
+
+
+def plotting_average(average, day_type, con, groupby):
+    
+    from matplotlib import pyplot as plt
+
+    plt.style.use('seaborn')
+    title = f'Grouped({con}): {groupby}'
+    
+    if len(day_type) == 4:
+        fig, axs = plt.subplots(nrows=1, ncols=3, sharey=True, figsize=[10,4.8])
+        axs = axs.ravel()
+    elif len(day_type) == 2:
+        fig = plt.figure()
+        
+    fig.suptitle(title,fontsize=15)
+    fig.tight_layout()
+    
+    i = 0
+    for day in day_type:
+        
+        if day == day_type[-1]:  #if context B
+            fig = plt.figure()
+            maxl = []
+            for legend, data in average.items():
+                plt.plot(data[day], label=legend, linewidth=2.5)
+                maxl.append(len(data[day]))
+                
+            plt.title(f'{title}: context B',fontsize=15)
+            plt.ylim([-3,105])
+            plt.xticks(range(0, max(maxl), 1))
+            plt.xlabel('Presentation #',fontsize=13)
+            plt.ylabel('Freezing Percentage',fontsize=13)
+            plt.legend(bbox_to_anchor=(1.3, 1.0),fontsize=12)
+            plt.tight_layout(pad=1.5)
+        
+        else:   #if context A
+            if len(day_type) == 4:
+                maxl = []
+                for legend, data in average.items():
+                    if ((legend[0] == 'S') and (day == 'D1')) or (legend[0] == 'M'):  #if single day and first day
+                        axs[i].plot(data[day], label=legend, linewidth=2.5)
+                        maxl.append(len(data[day]))
+                axs[i].set_title(day)
+                axs[i].set_ylim([-3, 105])
+                axs[i].set_xticks(range(0, max(maxl), 1))
+                axs[i].set_xlabel('Presentation #',fontsize=13)
+                axs[0].set_ylabel('Freezing Percentage',fontsize=13)
+                axs[0].legend(loc='upper left',bbox_to_anchor=(-0.8,1.0),fontsize=12)
+                plt.tight_layout()
+                
+            elif len(day_type) == 2:
+                maxl = []
+                for legend, data in average.items():
+                    plt.plot(data[day], label=legend, linewidth=2.5)
+                    maxl.append(len(data[day]))
+                plt.ylim([-3, 105])
+                plt.xticks(range(0, max(maxl), 1))
                 plt.xlabel('Presentation #',fontsize=13)
                 plt.ylabel('Freezing Percentage',fontsize=13)
                 plt.legend(bbox_to_anchor=(1.3, 1.0),fontsize=12)
@@ -261,530 +478,34 @@ def plotting(day_type, dictionary, title):
         i+=1
     
     
-    
-    
+filtered = my_filter(groupby,reduced_dict)
+day_type, filtered = legend_day_type(filtered)
+dictionary = organize_to_dict(filtered)
 
-# CONDITIONS DICTIONARY:
-# day_type: md, sd (multiday(4 days), single-day(2 days)) these include context B.
-# fs_or_ctr: FS, ctr
-# tone_duration: 1s, 10s
-# number_of_cycles: 8, 15
-conditions = {'fs_or_ctr': 'ctr',
-              'day_type': 'sd',
-              'tone_duration': '1s',
-              'number_of_cycles': '8'}
-
-
-
-day_type, title_for_plot = day_type_and_plot_title(conditions)
-
-if conditions['fs_or_ctr'] == 'fs':
-    dictionary = segregate_by_day(day_type, my_fs)
-elif conditions['fs_or_ctr'] == 'ctr':
-    dictionary = segregate_by_day(day_type, my_ctr)
-
-plotting(day_type, dictionary, title_for_plot)
-
-
-
-
-
-#%%
-
-# maximum list length
-temp = []
-for x in my_fs.values():
-    temp.append(len(x))
-temp = max(temp)
-
-# combined plots
-import matplotlib.pyplot as plt
-plt.figure()
-plt.title('2 days, 1s, cycle: 8 FS, D2')
-for k,v in my_fs_d1.items():
-    mouse = k
-    auto = v
-    plt.ylim([0,100])
-    plt.xticks(range(0, temp, 1))
-    plt.plot(auto, label=mouse)
-    # plt.axvline(x = 8)
-    plt.legend()
-    plt.tight_layout()
-    
-# individual plots
-import matplotlib.pyplot as plt
-for k,v in my_fs.items():   
-    plt.figure()
-    mouse = k
-    auto = v
-    plt.ylim([0, 100])
-    plt.plot(auto, label=mouse)
-    plt.title(mouse)
-
-
-#%%
-
-
-#automatic scoring organize (manual scoring)
-
-def csv_convert(path):
-    import csv    
-    csv_file = []
-    mouse_list,manual_fz = [], []
-    
-    with open(path, newline='') as f:
-        reader = csv.reader(f)
-        for row in reader:
-            csv_file.append(row)
-    
-    for line in csv_file:
-        if 'wt' in line[0]:
-            mouse_list.append(f'{line[0]} {line[1]}')
-            mouse_list.append(f'{line[0]} D2')
-            mouse_list.append(f'{line[0]} D3')
-        if 'freezing %' in line[0]:
-            temp = []
-            for x in line:
-                if ('freezing %' not in x) and (len(x) > 0):
-                    temp.append(float(x)*100)
-            manual_fz.append(temp)
-    
-    manual_fz = list(zip(mouse_list, manual_fz))
-    return manual_fz
-    
-manual = csv_convert(r'C:\Users\kmj05\OneDrive - personalmicrosoftsoftware.uci.edu\Downloads\Soo & Katie - Manual freeze-scoring_ trained (4).csv')
-       
-
-
-#%%
-
-
-# plot graphs, contextB as a subplot
-from matplotlib import pyplot as plt
-
-def plotting(day_type, dictionary, title):
-    if len(day_type) == 4:
-        fig, axs = plt.subplots(nrows=2, ncols=2, sharey=True)
-    elif len(day_type) == 2:
-        fig, axs = plt.subplots(nrows=1, ncols=2, sharey=True)
-    fig.suptitle(title)
-    axs = axs.ravel()
-    fig.tight_layout()
-    i = 0
-    for day, by_day in dictionary.items():
-        # maximum list length
-        temp = []
-        for x in by_day.values():
-            temp.append(len(x))
-        temp = max(temp)
-        # average by index
-        average = []
-        for x in range(temp):
-            hi = []
-            for y in by_day.values():
-                try:
-                    hi.append(y[x])
-                except:
-                    pass
-            mean = sum(hi)/len(hi)
-            average.append(mean)
-            
-        if day == day_type[-1]:
-            axs[i].plot(average,linewidth=2.5, color='#7f7f7f')
-            for name, individual in by_day.items():    
-                axs[i].scatter(range(len(individual)),individual,s=12, label=name[0:8])
-            axs[i].set_title(day+ ' (context B)')
-            axs[i].legend(bbox_to_anchor=(1.0, 1.0),fontsize=9)
-        else:
-            axs[i].plot(average,linewidth=2.5, color='#7f7f7f')
-            for individual in by_day.values():    
-                axs[i].scatter(range(len(individual)),individual,s=12)
-            axs[i].set_title(day)
-        axs[i].set_ylim([0, 100])
-        axs[i].set_xticks(range(0, temp, 1))
-        i+=1
-
-plotting(day_type, dictionary, title_for_plot)
-    
-
-
-
-#%%
-
-# standard deviation, area colored
-
-import numpy as np
-from matplotlib import pyplot as plt
-
-fig, axs = plt.subplots(nrows=2, ncols=2, sharey=True)
-fig.suptitle('multiday, 1s, 8 cycles (FS)')
-axs = axs.ravel()
-fig.tight_layout()
-
-i = 0
-for day, by_day in dictionary.items():
-    # maximum list length
-    temp = []
-    for x in by_day.values():
-        temp.append(len(x))
-    temp = max(temp)
-    # average by index
-    average = []
-    std_min, std_max = [], []
-    for x in range(temp):
-        hi = []
-        for y in by_day.values():
-            try:
-                hi.append(y[x])
-            except:
-                pass
-        mean = sum(hi)/len(hi)
-        std = np.std(np.array(hi))
-        average.append(mean)
-        std_min.append(mean-2*std)
-        std_max.append(mean+2*std)
         
-    if day == 'D4':
-        axs[i].plot(average,'k')
-        axs[i].fill_between(range(0, temp, 1), std_min, std_max, color='black', alpha=0.1)
-        axs[i].set_title(day)
-    else:
-        axs[i].plot(average,'b')
-        axs[i].fill_between(range(0, temp, 1), std_min, std_max, color='blue', alpha=0.1)
-        axs[i].set_title(day)
-    axs[i].set_ylim([0, 100])
-    axs[i].set_xticks(range(0, temp, 1))
-    
-    i+=1
-    
-    
-    
-#%%
-
-
-
-# for comparing manual and auto, graph
-
-avg_diff = {}
-lst = []
-for k,v in manual_dict.items():
-    for key in my_dict.keys():
-        manual_split = k.split('_')
-        manual_split[2] = manual_split[2][0:-3]
-        manual_split.append((k.split())[-1])
-        dict_split = key.split('_')
-        dict_split[4] = dict_split[4][-2:]
-        if set(manual_split).issubset(dict_split):
-            a = sum(my_dict[key])
-            break
-    b = sum(v)
-    avg_diff[k] = abs(b-a)
-    lst.append(k)
-
-
-x=[]
-y=[]
-for k,v in avg_diff.items():
-    x.append(k)
-    y.append(v)
-    
-plt.bar(lst, y)
-plt.ylim([0, 60])
-plt.title('only >15')
-plt.tight_layout()
-plt.show()
-
-
-# zip and plot
-# a = list(zip(mouse_list, auto_fz, manual_fz))
-# manual_fz is mouselist + manual fz 
-
-import matplotlib.pyplot as plt
-i = 0
-for k,v in manual_dict.items():    
-    plt.figure()
-    mouse = k
-    for key in my_dict.keys():
-        manual_split = k.split('_')
-        manual_split[2] = manual_split[2][0:-3]
-        manual_split.append((k.split())[-1])
-        dict_split = key.split('_')
-        dict_split[4] = dict_split[4][-2:]
-        if set(manual_split).issubset(dict_split):
-            auto = my_dict[key]
-            break
-    manual = v
-    plt.ylim([0, 100])
-    plt.plot(manual, label='manual')
-    plt.plot(auto, label='automatic')
-    plt.title(mouse)
-    plt.legend()
-    i+=1
-
-
-
-#%%
-
-
-by_day = {key:value for key,value in my_ctr.items() if 'D4' in key}
-
-import numpy as np
-# maximum list length
-temp = []
-for x in by_day.values():
-    temp.append(len(x))
-temp = max(temp)
-# average by index
-average = []
-std_min, std_max = [], []
-for x in range(temp):
-    hi = []
-    for y in by_day.values():
-        try:
-            hi.append(y[x])
-        except:
+for con,v in dictionary.items():  #for FS/ctr and dict of {MD,1s,8x:{mice}}
+    print(con)
+    iv = {}
+    for legend, data in v.items():
+        if bool(data) == False:
             pass
-    mean = sum(hi)/len(hi)
-    std = np.std(np.array(hi))
-    average.append(mean)
-    std_min.append(mean-2*std)
-    std_max.append(mean+2*std)
-    
-
-from matplotlib import pyplot as plt
-
-plt.figure()
-plt.plot(average)
-plt.fill_between(range(0, temp, 1), std_min, std_max, color='blue', alpha=0.1)
-plt.ylim([0, 100])
-plt.xticks(range(0, temp, 1))
-plt.title('4 days, 1s, 8 cycles with context B: D4')
-
-
-
-#%%   
-'''
-# convert into percentge, half second
-def data(numbers):
-    total, counter = 0,0
-    for num in numbers:
-        if num == 0:
-            counter += 1
-        elif num != 0:
-            if counter >= 15:
-                total += counter
-            counter = 0
-    total += counter
-    return total / len(numbers) * 100
-
-my_dict = {}
-for key, value in auto_dict.items():
-    freeze = []
-    for x in value:
-        aye = data(x)
-        freeze.append(aye)
-    my_dict[key] = freeze
-
-'''    
-    
-#%%
-
-'''
-def my_filter(counter):
-    total = 0
-    # look for clusters
-    idx_list = []
-    for idx,value in enumerate(counter):
-        if value != 0:
-            idx_list.append(idx)
-    start = 0
-    slice_list = []
-    for idx, value in enumerate(idx_list):
-        if idx == 0:
-            previous = value
         else:
-            current = value
-            if (current - previous) > 3:
-                end = idx
-                slice_list.append(idx_list[start:end])
-                start = idx
-            previous = current
-    # only_big = []
-    for mini_list in slice_list:
-        if len(mini_list) > 3:
-            total += len(mini_list)
-            # only_big.append(mini_list)
-    return (len(counter) - total)
-
-def data(numbers):
-    total, counter = 0, []
-    strike = 0
-    for num in numbers:
-        #create limit
-        if len(counter) <= 15:
-            limit = 3
-        else: 
-            limit = len(counter) * 0.2
-        #reset function
-        if (strike > limit) or (num > 5):
-            if len(counter) > 15:
-                total += len(counter)
-                # res = my_filter(counter)
-                # total = total + res
-            counter.clear()
-            strike = 0
-        #append number, give strike if not 0
-        if num > 5:
-            strike += 1
-        counter.append(num)
-        
-    return total / len(numbers) * 100
-
-my_dict = {}
-for key, value in auto_dict.items():
-    freeze = []
-    for x in value:
-        aye = data(x)
-        freeze.append(aye)
-    my_dict[key] = freeze
-'''
+            iv[legend] = data
+    average = to_average(iv, day_type)
+    plotting_average(average, day_type, con, groupby)
+    print('')
     
+        
+        
+
+
 #%%
 
-"""
-# clump_filter = []
-# for mini_list in only_big:
-#     check = len([x for x in mini_list if x!=0]) / len(mini_list)
-#     if check > 0.5:
-#         clump_filter.append(mini_list)
-#     else:
-#         diff = []
-#         for idx, value in enumerate(mini_list):
-#             if idx == 0:
-#                 previous = value
-#             else: 
-#                 current = value
-#                 diff.append(current - previous)
-#         average_diff = sum(diff) / (len(diff)-1)
-#         if average_diff < 2:
-#             clump_filter.append(mini_list) 
-# clump = 0
-# for my_list in clump_filter:
-#     clump += (my_list[-1] - my_list[0] + 1)
+# delete useless variables
+
+del auto_dict, average, con, condition, data, day_type, dictionary
+del f, filtered, graphs, groupby, indexed, info, iv, keys, legend, my_con, my_time
+del rawdata, title, v
 
 
-# change into %
-
-# my_dict = {}
-# for key, value in auto_dict.items():
-#     freeze = []
-#     for x in value:
-        
-#         aye = len([i for i in x if i == 0]) / len(x) * 100
-        
-#         freeze.append(aye)
-#     my_dict[key] = freeze
-    
-    
-    
-    
-# convert into percentge, half second
-def data(numbers):
-    total, counter = 0,0
-    for idx,num in enumerate(numbers):
-        if num <= 1:
-            counter += 1
-        elif num != 0:
-            if counter >= 20:
-                total += counter
-            counter = 0
-    total += counter
-    return total / len(numbers) * 100
-
-my_dict = {}
-for key, value in auto_dict.items():
-    freeze = []
-    for x in value:
-        aye = data(x)
-        freeze.append(aye)
-    my_dict[key] = freeze
-
-
-
-my_dict = {}
-for key, values in auto_dict.items():
-    freeze = []
-    for x in values:
-        total = 0
-        aye,hi = [], 0
-        for num in x:
-            if num == 0:
-                aye.append(num)
-            if num != 0:
-                # if len(aye) > 15:
-                hi += len(aye)
-                aye = []
-        freeze.append(hi)
-    my_dict[key] = freeze
-        
-        
-        
-    #     aye = len([i for i in x if i == 0]) / len(x) * 100
-    #     freeze.append(aye)
-    # my_dict[key] = freeze
-
-
-
-
-
-# ayy = []
-
-# for key, value in b.items():
-#     freeze = []
-#     for x in value:
-#         lst = []
-#         for idx, num in enumerate(x):
-#             if num == 0:
-#                 lst.append(idx)
-#         i = 0
-#         previous = -9999
-#         yee = []
-#         for z in lst:
-#             current = z
-#             if previous+5 >= current:
-#                 yee.append(current)
-#             elif previous+5 < current:
-#                 if len(yee) > 14:
-#                     i = i+len(yee)
-#                 yee = []
-#             previous = current
-#         hi = i/len(x)*100
-#         freeze.append(hi)
-#     temp = (key, freeze)
-#     ayy.append(temp)
-
-
-
-
-# lst = []
-# for idx, num in enumerate(value):
-#     if num == 0:
-#         lst.append(idx)
-
-
-
-# i = 0
-# previous = -9999
-# yee = []
-# for num in lst:
-#     current = num
-#     if previous+1 >= current:
-#         yee.append(current)
-#     elif previous+1 < current:
-#         if len(yee) > 14:
-#             i = i+len(yee)
-#         yee = []
-#     previous = current
-
-
-"""
+`print("my_test")' 
