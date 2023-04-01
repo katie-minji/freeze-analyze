@@ -1,13 +1,32 @@
 
-#hello I am testing out git hub this is third test
+# check for missing/excess presentation
+for i,x in master_dict.items():
+    if len(x['timestamps']) not in [16, 9,21]:
+        print(i)
+        print(len(x['timestamps']))
+        print()
+        
+# pick out outliers on purpose
+hi = {}
+for i,x in auto_dict.items():
+    if 'wt8' in i:
+        pass
+    else:
+        hi[i] = x
+
+auto_dict = hi
+        
+
+#%%
+
 
 import pickle
 import os
-os.chdir(r'C:\Users\kmj05\OneDrive\Desktop\coding\winter2023_lab\code_by_modules\fz_analyze2')
+os.chdir(r'G:\My Drive\lab\pickle\fz_score\2023_03_31__17_11_20')
 
 # save pickle
-with open('average', 'wb') as handle:
-    pickle.dump(average, handle, protocol=pickle.HIGHEST_PROTOCOL)
+with open('master.pkl', 'wb') as handle:
+    pickle.dump(master_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 
 #%%
@@ -16,15 +35,14 @@ with open('average', 'wb') as handle:
 
 import pickle
 import os
-os.chdir(r'C:\Users\kmj05\OneDrive\Desktop\coding\winter2023_lab\code_by_modules\fz_analyze2')
+os.chdir(r'G:\My Drive\lab\pickle\fz_score\2023_03_31__11_57_20')
 
 # open pickle
-with open("my_final", "rb") as f:
+with open("master.pkl", "rb") as f:
     rawdata = f.read()
     
 master_dict = pickle.loads(rawdata)
-
-
+        
 
 #%%
 
@@ -38,8 +56,11 @@ def after(my_dict):
         idx = value['on_off_idx']  #index of light on and off
         fz_list = []  
         fz_list.append(fz[0:idx[0][0]])  #append initial delay, 0 to first light
-        for x in idx:  #for each presentation index
-            fz_list.append(fz[x[1]:x[1]+1800])  #light off index to light off + 60s
+        for i in range(len(idx)-1):
+            fz_list.append(fz[idx[i][1]:idx[i+1][0]])  #for each presentation index, from off to next presentation on
+        fz_list.append(fz[idx[len(idx)-1][1]:])  #last, until end of vid
+        # for x in idx:  #for each presentation index
+        #     fz_list.append(fz[x[1]:x[1]+3600])  #light off index to light off + 60s
         indexed[mouse] = fz_list  #append to dictionary
     return indexed
 
@@ -314,8 +335,12 @@ print(graphs)  #print data we have
 
 # group into specific conditions
 
-groupby = ['10s']  #MD,SD,1s,10s,15x,8x
-# groupby = ['con1','con5']
+# groupby = ['10s']  #MD,SD,1s,10s,15x,8x
+# groupby = ['con1','con2','con3','con4','con5','con6','con7','con8']
+# groupby = ['con1','con5','con6']
+# groupby = ['con5','con6']
+groupby = ['con5']
+
 
 def my_filter(groupby, reduced_dict):
     
@@ -414,6 +439,26 @@ def to_average(v,day_type):
     return avg_day
         
 
+def filter_average(average):
+    
+    mod_average = {}
+    
+    for legend, data in average.items():
+        if 'MD' in legend:
+            mod_average[legend] = data
+        elif len(data) == 4:  #if single day is not 2 days, instead 4
+            mod_data = {}
+            mod_data['D1'] = data['D1']
+            mod_data['D2'] = data['D2']
+            mod_data['D3'] = data['D2']
+            mod_data['D4'] = data['D2']
+            mod_average[legend] = mod_data
+        else:  #if single day is 2 days
+            mod_average[legend] = data
+
+    return mod_average
+    
+
 
 def plotting_average(average, day_type, con, groupby):
     
@@ -492,7 +537,8 @@ for con,v in dictionary.items():  #for FS/ctr and dict of {MD,1s,8x:{mice}}
         else:
             iv[legend] = data
     average = to_average(iv, day_type)
-    plotting_average(average, day_type, con, groupby)
+    average_mod = filter_average(average)
+    plotting_average(average_mod, day_type, con, groupby)
     print('')
     
         
@@ -506,6 +552,3 @@ for con,v in dictionary.items():  #for FS/ctr and dict of {MD,1s,8x:{mice}}
 del auto_dict, average, con, condition, data, day_type, dictionary
 del f, filtered, graphs, groupby, indexed, info, iv, keys, legend, my_con, my_time
 del rawdata, title, v
-
-
-`print("my_test")' 
